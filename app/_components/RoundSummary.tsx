@@ -1,21 +1,23 @@
 import type { PlayerColor, PlayerScore, RoundState } from "../_lib/types";
-import { PLAYER_COLORS, ROTATION_ORDERS } from "../_lib/constants";
+import { PLAYER_COLORS } from "../_lib/constants";
 
 interface RoundSummaryProps {
   roundIndex: number;
   round: RoundState;
-  scores: Record<PlayerColor, PlayerScore>;
+  rounds: RoundState[];
+  scores: Record<string, PlayerScore>;
   onNextRound: () => void;
 }
 
 export function RoundSummary({
   roundIndex,
   round,
+  rounds,
   scores,
   onNextRound,
 }: RoundSummaryProps) {
-  const order = ROTATION_ORDERS[roundIndex];
-  const nextOrder = ROTATION_ORDERS[roundIndex + 1];
+  const order = round.playerOrder;
+  const nextRound = rounds[roundIndex + 1];
 
   return (
     <div className="fixed inset-0 bg-black/80 flex items-center justify-center p-4 z-50">
@@ -51,10 +53,10 @@ export function RoundSummary({
           })}
         </div>
 
-        {nextOrder && (
+        {nextRound && (
           <p className="text-center text-gray-400 text-xs mb-4">
             Next round order:{" "}
-            {nextOrder.map((c) => PLAYER_COLORS[c].label).join(" → ")}
+            {nextRound.playerOrder.map((c) => PLAYER_COLORS[c].label).join(" → ")}
           </p>
         )}
 

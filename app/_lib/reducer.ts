@@ -6,38 +6,50 @@ import type {
   DartThrow,
   RoundState,
   PlayerScore,
+  Multiplier,
+  ClaimInfo,
+  GameConfig,
 } from "./types";
 import {
-  PLAYERS,
-  ROTATION_ORDERS,
   DARTS_PER_TURN,
-  PLAYERS_PER_ROUND,
-  TOTAL_ROUNDS,
+  getPlayersForCount,
+  generateRotationOrders,
 } from "./constants";
 
-export function initialGameState(): GameState {
+export function initialGameState(config: GameConfig): GameState {
+  const players = getPlayersForCount(config.playerCount);
+  const rotations = generateRotationOrders(players);
+
   return {
     phase: "playing",
+    gameMode: config.gameMode,
+    players,
     currentRound: 0,
     currentPlayerIndex: 0,
     currentDartIndex: 0,
-    rounds: ROTATION_ORDERS.map((order) => ({
+    rounds: rotations.map((order) => ({
       playerOrder: order,
       claimedNumbers: {},
       throws: [],
     })),
     scores: Object.fromEntries(
-      PLAYERS.map((color) => [
+      players.map((color) => [
         color,
-        { color, roundScores: [0, 0, 0, 0], totalScore: 0 } as PlayerScore,
+        {
+          color,
+          roundScores: Array(players.length).fill(0),
+          totalScore: 0,
+        } as PlayerScore,
       ]),
-    ) as Record<PlayerColor, PlayerScore>,
+    ) as Record<string, PlayerScore>,
     history: [],
   };
 }
 
 function advanceCounters(state: GameState): Partial<GameState> {
-  let { currentDartIndex, currentPlayerIndex, currentRound, phase } = state;
+  let { currentDartIndex, currentPlayerIndex, currentRound } = state;
+  const playerCount = state.players.length;
+  const totalRounds = playerCount;
 
   currentDartIndex++;
 
@@ -45,10 +57,9 @@ function advanceCounters(state: GameState): Partial<GameState> {
     currentDartIndex = 0;
     currentPlayerIndex++;
 
-    if (currentPlayerIndex >= PLAYERS_PER_ROUND) {
+    if (currentPlayerIndex >= playerCount) {
       currentPlayerIndex = 0;
-      // Show round-end summary before advancing
-      if (currentRound < TOTAL_ROUNDS - 1) {
+      if (currentRound < totalRounds - 1) {
         return {
           currentDartIndex,
           currentPlayerIndex,
@@ -66,35 +77,56 @@ function advanceCounters(state: GameState): Partial<GameState> {
     }
   }
 
-  return { currentDartIndex, currentPlayerIndex, currentRound, phase };
+  return { currentDartIndex, currentPlayerIndex, currentRound, phase: "playing" };
 }
 
 function handleThrow(
   state: GameState,
   boardNumber: BoardNumber | null,
+  multiplier: Multiplier,
 ): GameState {
   if (state.phase !== "playing") return state;
 
   const round = state.rounds[state.currentRound];
   const currentPlayer = round.playerOrder[state.currentPlayerIndex];
+  const isPlus = state.gameMode === "countdown-chaos-plus";
 
   let pointsAwarded = 0;
+  let pointsLost = 0;
+  let stolenFrom: PlayerColor | null = null;
   let claimedNumber: BoardNumber | null = null;
+  let previousClaim: ClaimInfo | null = null;
 
-  if (boardNumber !== null && !(boardNumber in round.claimedNumbers)) {
-    pointsAwarded = boardNumber;
-    claimedNumber = boardNumber;
+  if (boardNumber !== null) {
+    const existing = round.claimedNumbers[boardNumber] as ClaimInfo | undefined;
+
+    if (!existing) {
+      // Unclaimed — claim it
+      pointsAwarded = boardNumber * multiplier;
+      claimedNumber = boardNumber;
+    } else if (isPlus && multiplier > existing.multiplier) {
+      // Steal: higher multiplier takes it
+      previousClaim = existing;
+      stolenFrom = existing.player;
+      pointsLost = boardNumber * existing.multiplier;
+      pointsAwarded = boardNumber * multiplier;
+      claimedNumber = boardNumber;
+    }
+    // Otherwise: already claimed at same or higher multiplier — 0 points
   }
 
   const dartThrow: DartThrow = {
     boardNumber,
+    multiplier,
     pointsAwarded,
+    pointsLost,
+    stolenFrom,
     player: currentPlayer,
   };
 
   const newClaimedNumbers = { ...round.claimedNumbers };
   if (claimedNumber !== null) {
-    newClaimedNumbers[claimedNumber] = currentPlayer;
+    newClaimedNumbers[claimedNumber] = { player: currentPlayer, multiplier };
   }
 
   const newRound: RoundState = {
@@ -107,11 +139,22 @@ function handleThrow(
   newRounds[state.currentRound] = newRound;
 
   const newScores = { ...state.scores };
+
+  // Add points to current player
   const playerScore = { ...newScores[currentPlayer] };
   playerScore.roundScores = [...playerScore.roundScores];
   playerScore.roundScores[state.currentRound] += pointsAwarded;
   playerScore.totalScore += pointsAwarded;
   newScores[currentPlayer] = playerScore;
+
+  // Remove points from stolen player
+  if (stolenFrom) {
+    const victimScore = { ...newScores[stolenFrom] };
+    victimScore.roundScores = [...victimScore.roundScores];
+    victimScore.roundScores[state.currentRound] -= pointsLost;
+    victimScore.totalScore -= pointsLost;
+    newScores[stolenFrom] = victimScore;
+  }
 
   const counters = advanceCounters(state);
 
@@ -128,6 +171,7 @@ function handleThrow(
         dartIndex: state.currentDartIndex,
         dartThrow,
         claimedNumber,
+        previousClaim,
       },
     ],
   };
@@ -141,8 +185,14 @@ function handleUndo(state: GameState): GameState {
 
   const round = state.rounds[entry.round];
   const newClaimedNumbers = { ...round.claimedNumbers };
+
   if (entry.claimedNumber !== null) {
-    delete newClaimedNumbers[entry.claimedNumber];
+    if (entry.previousClaim) {
+      // Restore the previous claim (undo a steal)
+      newClaimedNumbers[entry.claimedNumber] = entry.previousClaim;
+    } else {
+      delete newClaimedNumbers[entry.claimedNumber];
+    }
   }
 
   const newRound: RoundState = {
@@ -155,11 +205,22 @@ function handleUndo(state: GameState): GameState {
   newRounds[entry.round] = newRound;
 
   const newScores = { ...state.scores };
+
+  // Remove points from current player
   const playerScore = { ...newScores[entry.dartThrow.player] };
   playerScore.roundScores = [...playerScore.roundScores];
   playerScore.roundScores[entry.round] -= entry.dartThrow.pointsAwarded;
   playerScore.totalScore -= entry.dartThrow.pointsAwarded;
   newScores[entry.dartThrow.player] = playerScore;
+
+  // Restore points to stolen player
+  if (entry.dartThrow.stolenFrom) {
+    const victimScore = { ...newScores[entry.dartThrow.stolenFrom] };
+    victimScore.roundScores = [...victimScore.roundScores];
+    victimScore.roundScores[entry.round] += entry.dartThrow.pointsLost;
+    victimScore.totalScore += entry.dartThrow.pointsLost;
+    newScores[entry.dartThrow.stolenFrom] = victimScore;
+  }
 
   return {
     ...state,
@@ -176,9 +237,9 @@ function handleUndo(state: GameState): GameState {
 export function gameReducer(state: GameState, action: GameAction): GameState {
   switch (action.type) {
     case "THROW_DART":
-      return handleThrow(state, action.boardNumber);
+      return handleThrow(state, action.boardNumber, action.multiplier);
     case "MISS":
-      return handleThrow(state, null);
+      return handleThrow(state, null, 1);
     case "UNDO":
       return handleUndo(state);
     case "NEXT_ROUND": {
@@ -192,7 +253,10 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       };
     }
     case "NEW_GAME":
-      return initialGameState();
+      return initialGameState({
+        gameMode: state.gameMode,
+        playerCount: state.players.length as 2 | 3 | 4,
+      });
     default:
       return state;
   }

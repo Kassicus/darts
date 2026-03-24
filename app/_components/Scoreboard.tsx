@@ -1,19 +1,19 @@
 import type { PlayerColor, PlayerScore, RoundState, DartThrow } from "../_lib/types";
-import { PLAYER_COLORS, TOTAL_ROUNDS, ROTATION_ORDERS } from "../_lib/constants";
+import { PLAYER_COLORS } from "../_lib/constants";
 
 interface ScoreboardProps {
-  scores: Record<PlayerColor, PlayerScore>;
+  players: PlayerColor[];
+  scores: Record<string, PlayerScore>;
   rounds: RoundState[];
   currentRound: number;
+  advancedMode: boolean;
 }
 
-export function Scoreboard({ scores, rounds, currentRound }: ScoreboardProps) {
-  const players: PlayerColor[] = ["red", "blue", "green", "yellow"];
+export function Scoreboard({ players, scores, rounds, currentRound, advancedMode }: ScoreboardProps) {
   const maxScore = Math.max(...players.map((p) => scores[p].totalScore));
 
   return (
     <div className="space-y-3 h-full flex flex-col">
-      {/* Score table */}
       <div className="rounded-xl border border-gray-800 bg-gray-900">
         <table className="w-full text-sm">
           <thead>
@@ -32,9 +32,8 @@ export function Scoreboard({ scores, rounds, currentRound }: ScoreboardProps) {
             </tr>
           </thead>
           <tbody>
-            {Array.from({ length: TOTAL_ROUNDS }, (_, roundIdx) => {
+            {rounds.map((round, roundIdx) => {
               const isCurrentRound = roundIdx === currentRound;
-              const order = ROTATION_ORDERS[roundIdx];
               return (
                 <tr
                   key={roundIdx}
@@ -50,7 +49,7 @@ export function Scoreboard({ scores, rounds, currentRound }: ScoreboardProps) {
                       )}
                     </div>
                     <div className="flex gap-0.5 mt-0.5">
-                      {order.map((c) => (
+                      {round.playerOrder.map((c) => (
                         <div
                           key={c}
                           className={`w-1.5 h-1.5 rounded-full ${PLAYER_COLORS[c].bgClass}`}
@@ -96,13 +95,12 @@ export function Scoreboard({ scores, rounds, currentRound }: ScoreboardProps) {
         </table>
       </div>
 
-      {/* Current round throw log */}
-      <ThrowLog throws={rounds[currentRound].throws} />
+      <ThrowLog throws={rounds[currentRound].throws} advancedMode={advancedMode} />
     </div>
   );
 }
 
-function ThrowLog({ throws }: { throws: DartThrow[] }) {
+function ThrowLog({ throws, advancedMode }: { throws: DartThrow[]; advancedMode: boolean }) {
   if (throws.length === 0) return null;
 
   return (
@@ -111,25 +109,42 @@ function ThrowLog({ throws }: { throws: DartThrow[] }) {
         This Round
       </div>
       <div className="flex flex-wrap gap-1.5">
-        {throws.map((t, i) => (
-          <span
-            key={i}
-            className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold ${
-              t.boardNumber === null
-                ? "bg-gray-800 text-gray-500"
-                : t.pointsAwarded > 0
-                  ? `${PLAYER_COLORS[t.player].bgClass} text-white`
-                  : "bg-gray-800 text-gray-400 line-through"
-            }`}
-          >
-            {t.boardNumber === null ? "Miss" : t.boardNumber}
-            {t.boardNumber !== null && t.pointsAwarded === 0 && (
-              <span className="ml-1 text-[10px] no-underline" style={{ textDecoration: "none" }}>
-                (taken)
-              </span>
-            )}
-          </span>
-        ))}
+        {throws.map((t, i) => {
+          const isMiss = t.boardNumber === null;
+          const isScored = t.pointsAwarded > 0;
+          const isSteal = t.stolenFrom !== null;
+          const multiplierLabel =
+            advancedMode && t.boardNumber !== null && t.multiplier > 1
+              ? `${t.multiplier === 2 ? "D" : "T"}`
+              : "";
+
+          return (
+            <span
+              key={i}
+              className={`inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-bold ${
+                isMiss
+                  ? "bg-gray-800 text-gray-500"
+                  : isScored
+                    ? `${PLAYER_COLORS[t.player].bgClass} text-white`
+                    : "bg-gray-800 text-gray-400 line-through"
+              } ${isSteal ? "ring-1 ring-yellow-400" : ""}`}
+            >
+              {isMiss
+                ? "Miss"
+                : `${multiplierLabel}${t.boardNumber}`}
+              {!isMiss && isScored && advancedMode && (
+                <span className="ml-0.5 text-[10px] opacity-75">
+                  ={t.pointsAwarded}
+                </span>
+              )}
+              {!isMiss && !isScored && (
+                <span className="ml-1 text-[10px] no-underline" style={{ textDecoration: "none" }}>
+                  (taken)
+                </span>
+              )}
+            </span>
+          );
+        })}
       </div>
     </div>
   );

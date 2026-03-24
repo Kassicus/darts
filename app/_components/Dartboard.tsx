@@ -1,18 +1,19 @@
 "use client";
 
-import type { PlayerColor, BoardNumber } from "../_lib/types";
+import type { ClaimInfo, BoardNumber, Multiplier } from "../_lib/types";
 import { BOARD_NUMBERS, RINGS } from "../_lib/constants";
 import { polarToCartesian, getWedgeAngles } from "../_lib/dartboard-geometry";
 import { DartboardWedge } from "./DartboardWedge";
 import { Bullseye } from "./Bullseye";
 
 interface DartboardProps {
-  claimedNumbers: Record<number, PlayerColor>;
-  onHit: (boardNumber: BoardNumber) => void;
+  claimedNumbers: Record<number, ClaimInfo>;
+  onHit: (boardNumber: BoardNumber, multiplier: Multiplier) => void;
   disabled: boolean;
+  advancedMode: boolean;
 }
 
-export function Dartboard({ claimedNumbers, onHit, disabled }: DartboardProps) {
+export function Dartboard({ claimedNumbers, onHit, disabled, advancedMode }: DartboardProps) {
   return (
     <svg
       viewBox="-230 -230 460 460"
@@ -28,17 +29,19 @@ export function Dartboard({ claimedNumbers, onHit, disabled }: DartboardProps) {
           key={num}
           number={num}
           index={i}
-          claimedBy={claimedNumbers[num] ?? null}
-          onClick={() => onHit(num as BoardNumber)}
+          claimInfo={claimedNumbers[num] ?? null}
+          onHit={(mult) => onHit(num as BoardNumber, mult)}
           disabled={disabled}
+          advancedMode={advancedMode}
         />
       ))}
 
       {/* Bullseye */}
       <Bullseye
-        claimedBy={claimedNumbers[25] ?? null}
-        onClick={() => onHit(25)}
+        claimInfo={claimedNumbers[25] ?? null}
+        onHit={(mult) => onHit(25, mult)}
         disabled={disabled}
+        advancedMode={advancedMode}
       />
 
       {/* Number labels */}

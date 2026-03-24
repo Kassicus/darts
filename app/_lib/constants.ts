@@ -1,22 +1,25 @@
 import type { PlayerColor } from "./types";
 
-export const PLAYERS: PlayerColor[] = ["red", "blue", "green", "yellow"];
-
-export const ROTATION_ORDERS: PlayerColor[][] = [
-  ["red", "blue", "green", "yellow"],
-  ["blue", "green", "yellow", "red"],
-  ["green", "yellow", "red", "blue"],
-  ["yellow", "red", "blue", "green"],
-];
+export const ALL_PLAYERS: PlayerColor[] = ["red", "blue", "green", "yellow"];
 
 export const DARTS_PER_TURN = 3;
-export const PLAYERS_PER_ROUND = 4;
-export const TOTAL_ROUNDS = 4;
 
 export const BOARD_NUMBERS = [
   20, 1, 18, 4, 13, 6, 10, 15, 2, 17,
   3, 19, 7, 16, 8, 11, 14, 9, 12, 5,
 ] as const;
+
+export function getPlayersForCount(count: 2 | 3 | 4): PlayerColor[] {
+  return ALL_PLAYERS.slice(0, count);
+}
+
+export function generateRotationOrders(players: PlayerColor[]): PlayerColor[][] {
+  const orders: PlayerColor[][] = [];
+  for (let r = 0; r < players.length; r++) {
+    orders.push([...players.slice(r), ...players.slice(0, r)]);
+  }
+  return orders;
+}
 
 export const PLAYER_COLORS: Record<
   PlayerColor,

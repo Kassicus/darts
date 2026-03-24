@@ -3,11 +3,12 @@ import { PLAYER_COLORS } from "../_lib/constants";
 import { getStandings, getWinner } from "../_lib/scoring";
 
 interface GameSummaryProps {
-  scores: Record<PlayerColor, PlayerScore>;
+  scores: Record<string, PlayerScore>;
   onNewGame: () => void;
+  onBackToMenu: () => void;
 }
 
-export function GameSummary({ scores, onNewGame }: GameSummaryProps) {
+export function GameSummary({ scores, onNewGame, onBackToMenu }: GameSummaryProps) {
   const standings = getStandings(scores);
   const winners = getWinner(scores);
 
@@ -61,12 +62,20 @@ export function GameSummary({ scores, onNewGame }: GameSummaryProps) {
           })}
         </div>
 
-        <button
-          onClick={onNewGame}
-          className="w-full mt-6 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-lg transition-colors"
-        >
-          New Game
-        </button>
+        <div className="flex gap-3 mt-6">
+          <button
+            onClick={onNewGame}
+            className="flex-1 py-3 px-4 rounded-xl bg-blue-600 hover:bg-blue-500 active:bg-blue-700 text-white font-bold text-lg transition-colors"
+          >
+            Play Again
+          </button>
+          <button
+            onClick={onBackToMenu}
+            className="py-3 px-4 rounded-xl bg-gray-800 hover:bg-gray-700 active:bg-gray-600 text-gray-300 font-medium border border-gray-700 transition-colors"
+          >
+            Menu
+          </button>
+        </div>
       </div>
     </div>
   );
