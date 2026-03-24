@@ -18,7 +18,8 @@ import {
 
 export function initialGameState(config: GameConfig): GameState {
   const players = getPlayersForCount(config.playerCount);
-  const rotations = generateRotationOrders(players);
+  const totalRounds = config.rounds;
+  const rotations = generateRotationOrders(players, totalRounds);
 
   return {
     phase: "playing",
@@ -37,7 +38,7 @@ export function initialGameState(config: GameConfig): GameState {
         color,
         {
           color,
-          roundScores: Array(players.length).fill(0),
+          roundScores: Array(totalRounds).fill(0),
           totalScore: 0,
         } as PlayerScore,
       ]),
@@ -49,7 +50,7 @@ export function initialGameState(config: GameConfig): GameState {
 function advanceCounters(state: GameState): Partial<GameState> {
   let { currentDartIndex, currentPlayerIndex, currentRound } = state;
   const playerCount = state.players.length;
-  const totalRounds = playerCount;
+  const totalRounds = state.rounds.length;
 
   currentDartIndex++;
 
@@ -256,6 +257,7 @@ export function gameReducer(state: GameState, action: GameAction): GameState {
       return initialGameState({
         gameMode: state.gameMode,
         playerCount: state.players.length as 2 | 3 | 4,
+        rounds: state.rounds.length,
       });
     default:
       return state;

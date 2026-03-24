@@ -13,10 +13,11 @@ export function getPlayersForCount(count: 2 | 3 | 4): PlayerColor[] {
   return ALL_PLAYERS.slice(0, count);
 }
 
-export function generateRotationOrders(players: PlayerColor[]): PlayerColor[][] {
+export function generateRotationOrders(players: PlayerColor[], rounds: number): PlayerColor[][] {
   const orders: PlayerColor[][] = [];
-  for (let r = 0; r < players.length; r++) {
-    orders.push([...players.slice(r), ...players.slice(0, r)]);
+  for (let r = 0; r < rounds; r++) {
+    const offset = r % players.length;
+    orders.push([...players.slice(offset), ...players.slice(0, offset)]);
   }
   return orders;
 }

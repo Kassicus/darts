@@ -11,6 +11,7 @@ import { Scoreboard } from "./Scoreboard";
 import { ActionBar } from "./ActionBar";
 import { GameSummary } from "./GameSummary";
 import { RoundSummary } from "./RoundSummary";
+import { X01Board } from "./X01Board";
 
 export function GameShell() {
   const [config, setConfig] = useState<GameConfig | null>(null);
@@ -19,9 +20,15 @@ export function GameShell() {
     return <MainMenu onStartGame={setConfig} />;
   }
 
+  const key = `${config.gameMode}-${config.playerCount}-${Date.now()}`;
+
+  if (config.gameMode === "classic-501" || config.gameMode === "classic-301") {
+    return <X01Board key={key} config={config} onBack={() => setConfig(null)} />;
+  }
+
   return (
     <GameBoard
-      key={`${config.gameMode}-${config.playerCount}-${Date.now()}`}
+      key={key}
       config={config}
       onBack={() => setConfig(null)}
     />

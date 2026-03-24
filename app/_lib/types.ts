@@ -7,9 +7,19 @@ export type BoardNumber =
 
 export type Multiplier = 1 | 2 | 3;
 
+export type GameMode =
+  | "countdown-chaos"
+  | "countdown-chaos-plus"
+  | "classic-501"
+  | "classic-301";
+
+export type RuleVariant = "historic" | "relaxed";
+
 export interface GameConfig {
-  gameMode: "countdown-chaos" | "countdown-chaos-plus";
+  gameMode: GameMode;
   playerCount: 2 | 3 | 4;
+  rounds: number;
+  ruleVariant?: RuleVariant;
 }
 
 export interface ClaimInfo {
@@ -42,7 +52,7 @@ export type GamePhase = "playing" | "roundEnd" | "finished";
 
 export interface GameState {
   phase: GamePhase;
-  gameMode: "countdown-chaos" | "countdown-chaos-plus";
+  gameMode: GameMode;
   players: PlayerColor[];
   currentRound: number;
   currentPlayerIndex: number;
