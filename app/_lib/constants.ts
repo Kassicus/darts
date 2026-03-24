@@ -61,8 +61,8 @@ export const BOARD_RADIUS = 200;
 export const RINGS = {
   innerBull: 7.5,
   outerBull: 19,
-  innerSingle: 116,
-  treble: 126,
-  outerSingle: 191,
+  innerSingle: 112,
+  treble: 130,
+  outerSingle: 184,
   double: 200,
 } as const;
